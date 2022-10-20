@@ -1,20 +1,22 @@
-use std::io::Write;
+use actix_multipart::Multipart;
+use actix_web::{delete, get, post, web, App, Error, HttpResponse, HttpServer, Responder};
+use futures_util::TryStreamExt as _;
 use std::fs;
 use std::fs::File;
-use actix_web::{web, App, Error, HttpResponse, HttpServer, Responder};
-use actix_multipart::Multipart;
-use futures_util::TryStreamExt as _;
-use libitlc::DeleteRequest;
+use std::io::Write;
 
-async fn downloads() -> impl Responder {
-    HttpResponse::Ok().body("Hello Chris, this is the downloads")
-}
+/*
+file server:
+    routes:
+        POST    /midi           - add another file
+        GET     /midi           - list of files
+        GET     /midi/{file}    - download a midi file
+        DELETE  /midi/{file}    - delete a midi file
+*/
 
-async fn file() -> impl Responder {
-    HttpResponse::Ok().body("Hello Chris, this is the files\nHello Maryangela")
-}
-
-async fn submissions(mut payload: Multipart) -> Result<HttpResponse, Error> {
+/// Upload and verify a midi file
+#[post("/midi")]
+async fn upload(mut payload: Multipart) -> Result<HttpResponse, Error> {
     //HttpResponse::Ok().body(req_body)
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
@@ -41,55 +43,41 @@ async fn submissions(mut payload: Multipart) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().into())
 }
 
-async fn delete(item: web::Json<DeleteRequest>) -> HttpResponse {
-    
-    match File::open(item.0.delete_name.clone()){ //have Chris explain this
-        Ok(_) => {
-            match fs::remove_file(format!("./tmp/{}", item.0.delete_name)) {
-                Ok(_) => HttpResponse::Ok().finish(),
-                Err(e) => {
-                     HttpResponse::BadRequest().finish()
-                }
-            }
+/// Return information about all avaiable files as JSON
+#[get("/midi")]
+async fn list() -> impl Responder {
+    HttpResponse::Ok().body("")
+}
+
+/// Download a single file by name
+#[get("/midi/{file}")]
+async fn download() -> impl Responder {
+    HttpResponse::Ok().body("")
+}
+
+/// Delete a saved file by name
+#[delete("/midi/{file}")]
+async fn delete(path: web::Path<String>) -> HttpResponse {
+    match File::open(path.clone()) {
+        //have Chris explain this
+        Ok(_) => match fs::remove_file(format!("./tmp/{}", path)) {
+            Ok(_) => HttpResponse::Ok().finish(),
+            Err(_) => HttpResponse::BadRequest().finish(),
         },
         Err(_) => HttpResponse::NotFound().finish(),
     }
-    
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
-            //.service(hello) //service for handlers using routing macros
-            //.service(echo) //route for manually routed handlers
-            // .route("/hey", web::get().to(manual_hello))
-            .route("/submissions", web::post().to(submissions))
-            .route("/downloads", web::get().to(downloads))
-            .route("/downloads/file", web::get().to(file))
-            .route("/delete", web::delete().to(delete))
-            // .service(downloads)
-            // .service(file)
-            // .service(submissions)
-            // .service(delete)
+            .service(delete)
+            .service(upload)
+            .service(list)
+            .service(download)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
 }
-
-//yay
-/*
-file server:
-    routes: the /route (/hey)
-        Post request: submit an entry (changes)
-        delete request:
-        REDACTED FOR CHRIS
-        POST /fileserver/submission - add another file
-        DELETE /fileserver/delete
-        GET /fileserver/download - list of files
-        GET /fileserver/download/<file>
-
-        get requests only have a header
-
-*/

@@ -103,7 +103,7 @@ impl UploadMidi {
             result.extend(files);
         }
 
-        Request::post("localhost:")
+        Request::post("localhost
 
         Msg::Files(result)
     }
