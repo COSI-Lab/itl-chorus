@@ -1,29 +1,34 @@
-extern crate base64;
-use std::collections::HashMap;
-
 use gloo::file::callbacks::FileReader;
 use gloo::file::File;
-use gloo::net::http::{Request, Response};
-
+use reqwest::{
+    multipart::{Form, Part},
+    Client,
+};
+use std::collections::HashMap;
+use std::borrow::Cow;
 use web_sys::{Event, FileList, HtmlInputElement};
 use yew::html::TargetCast;
 use yew::{html, Component, Context, Html};
 
+async fn upload(file_name: String, data: Vec<u8>) -> Result<reqwest::Response, reqwest::Error> {
+    let part = Part::bytes(Cow::from(data)).file_name(file_name.clone());
+    let form = Form::new().part("upload", part);
 
-struct FileDetails {
-    name: String,
-    file_type: String,
-    data: Vec<u8>,
+    reqwest::Client::new()
+        .post("http://localhost:8081/midi")
+        .multipart(form)
+        .send()
+        .await
 }
 
 pub enum Msg {
+    Uploaded(String, bool),
     Loaded(String, String, Vec<u8>),
     Files(Vec<File>),
 }
 
 pub struct UploadMidi {
     readers: HashMap<String, FileReader>,
-    files: Vec<FileDetails>,
 }
 
 impl Component for UploadMidi {
@@ -33,20 +38,28 @@ impl Component for UploadMidi {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             readers: HashMap::default(),
-            files: Vec::default(),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Loaded(file_name, file_type, data) => {
-                self.files.push(FileDetails {
-                    data,
-                    file_type,
-                    name: file_name.clone(),
-                });
-                self.readers.remove(&file_name);
+            Msg::Uploaded(_, _) => {
                 true
+            }
+            Msg::Loaded(file_name, _file_type, data) => {
+                self.readers.remove(&file_name);
+                ctx.link().send_future(async move {
+                    let res = upload(file_name.clone(), data).await;
+
+                    match res {
+                        Ok(_) => Msg::Uploaded(file_name.clone(), true),
+                        Err(err) => {
+                            log::error!("{}", err);
+                            Msg::Uploaded(file_name.clone(), false)
+                        }
+                    }
+                });
+                false
             }
             Msg::Files(files) => {
                 for file in files.into_iter() {
@@ -65,6 +78,7 @@ impl Component for UploadMidi {
                             ))
                         })
                     };
+
                     self.readers.insert(file_name, task);
                 }
                 true
@@ -85,6 +99,7 @@ impl Component for UploadMidi {
                         Self::upload_files(input.files())
                     })}
                 />
+                <p> {{ self.readers.len() }} </p>
             </div>
         }
     }
@@ -102,8 +117,6 @@ impl UploadMidi {
                 .map(File::from);
             result.extend(files);
         }
-
-        Request::post("localhost
 
         Msg::Files(result)
     }
