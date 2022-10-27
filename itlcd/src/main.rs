@@ -1,8 +1,8 @@
 use actix_multipart::Multipart;
 use actix_web::{delete, get, post, web, App, Error, HttpResponse, HttpServer, Responder};
 use futures_util::TryStreamExt as _;
-use std::fs;
 use std::fs::File;
+use std::fs;
 use std::io::Write;
 
 /*
@@ -15,7 +15,7 @@ file server:
 */
 
 /// Upload and verify a midi file
-#[post("/midi")]
+#[post("/midi")] //Chris's naming scheme is bad
 async fn upload(mut payload: Multipart) -> Result<HttpResponse, Error> {
     //HttpResponse::Ok().body(req_body)
     // iterate over multipart stream
@@ -44,12 +44,23 @@ async fn upload(mut payload: Multipart) -> Result<HttpResponse, Error> {
 }
 
 /// Return information about all avaiable files as JSON
-#[get("/midi")]
+#[get("/midi/list")]
 async fn list() -> impl Responder {
-    HttpResponse::Ok().body("")
+    match std::fs::read_dir("tmp") {
+        Ok(entries) => {
+            let s: Vec<_> = entries
+                .flatten()
+                .map(|x| x.file_name())
+                .map(|x| x.to_str().unwrap().to_string())
+                .collect();
+
+            HttpResponse::Ok().json(s)
+        }
+        Err(_) => HttpResponse::InternalServerError().finish()
+    }
 }
 
-/// Download a single file by name
+// Download a single file by name
 #[get("/midi/{file}")]
 async fn download() -> impl Responder {
     HttpResponse::Ok().body("")
