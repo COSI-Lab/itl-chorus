@@ -1,6 +1,6 @@
 //start of midi operations
 
-fn verify_is_midi(file: &Str) -> Bool{
+fn verify_is_midi(file: &str) -> Bool{
     //function used to verify file is in midi format
 }
 
