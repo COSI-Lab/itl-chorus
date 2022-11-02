@@ -69,9 +69,10 @@ async fn download() -> impl Responder {
 /// Delete a saved file by name
 #[delete("/midi/{file}")]
 async fn delete(path: web::Path<String>) -> HttpResponse {
+    let path = format!("./tmp/{}", path);
     match File::open(path.clone()) {
         //have Chris explain this
-        Ok(_) => match fs::remove_file(format!("./tmp/{}", path)) {
+        Ok(_) => match fs::remove_file(path) {
             Ok(_) => HttpResponse::Ok().finish(),
             Err(_) => HttpResponse::BadRequest().finish(),
         },
