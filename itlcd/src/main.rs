@@ -4,6 +4,7 @@ use futures_util::TryStreamExt as _;
 use std::fs::File;
 use std::fs;
 use std::io::Write;
+use std::io::Read;
 
 /*
 file server:
@@ -62,8 +63,24 @@ async fn list() -> impl Responder {
 
 // Download a single file by name
 #[get("/midi/{file}")]
-async fn download() -> impl Responder {
-    HttpResponse::Ok().body("")
+async fn download(path: web::Path<String>) -> impl Responder {
+    let path = format!("./tmp/{}", path.into_inner());
+    
+    let mut file = match  File::open(&path) {
+        Ok(file) => file,
+        Err(_) => return HttpResponse::NotFound().finish(),
+    };
+
+    let mut data = Vec::new();
+    match file.read_to_end(&mut data) {
+        Ok(_) => HttpResponse::Ok().body(data),
+        Err(_) => HttpResponse::InternalServerError().finish(), 
+    }
+
+    // return Ok(data);
+    //stream file into a vec<u8>
+    //send in Responder
+    // HttpResponse::Ok().body("")
 }
 
 /// Delete a saved file by name
