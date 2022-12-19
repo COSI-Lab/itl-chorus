@@ -1,10 +1,8 @@
+use actix_files::NamedFile;
 use actix_multipart::Multipart;
-use actix_web::{delete, get, post, web, App, Error, HttpResponse, HttpServer, Responder};
-use futures_util::TryStreamExt as _;
-use std::fs::File;
+use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
+use futures_util::TryStreamExt;
 use std::fs;
-use std::io::Write;
-use std::io::Read;
 
 /*
 file server:
@@ -15,85 +13,101 @@ file server:
         DELETE  /midi/{file}    - delete a midi file
 */
 
-/// Upload and verify a midi file
-#[post("/midi")] //Chris's naming scheme is bad
-async fn upload(mut payload: Multipart) -> Result<HttpResponse, Error> {
-    //HttpResponse::Ok().body(req_body)
+const MIDI_DIR: &str = "midi";
+const MAX_FILE_SIZE: usize = 10_485_760; // 10MB
+
+/// Upload and verify midi files
+#[post("/midi")]
+async fn upload(mut payload: Multipart) -> actix_web::Result<HttpResponse> {
+    // We may need to return multiple results to the user, so we'll collect them
+    let mut results: Vec<Result<String, String>> = Vec::new();
+
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
         // A multipart/form-data stream has to contain `content_disposition`
         let content_disposition = field.content_disposition();
 
-        let filename = match content_disposition.get_filename() {
-            Some(name) => name,
-            None => return Ok(HttpResponse::BadRequest().finish()),
+        let file_name = match content_disposition.get_filename() {
+            Some(file_name) => file_name.to_owned(),
+            None => {
+                results.push(Err("No file name provided".to_string()));
+                continue;
+            }
         };
 
-        let filepath = format!("./tmp/{filename}");
-
-        // File::create is blocking operation, use threadpool
-        let mut f = web::block(|| std::fs::File::create(filepath)).await??;
-
-        // Field in turn is stream of *Bytes* object
+        // read file into memory
+        let mut file = vec![];
         while let Some(chunk) = field.try_next().await? {
-            // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+            if (file.len() + chunk.len()) > MAX_FILE_SIZE {
+                results.push(Err(format!(
+                    "File {} is too large. Max size is {} bytes",
+                    file_name, MAX_FILE_SIZE
+                )));
+                continue;
+            }
+            file.extend_from_slice(&chunk);
         }
+
+        // verify the uploaded file is a midi
+        if midly::parse(&file).is_err() {
+            results.push(Err(format!("File {} is not a valid midi", file_name)));
+            continue;
+        }
+
+        // save file to disk
+        let path = format!("{}/{}", MIDI_DIR, file_name);
+        fs::write(&path, file)?;
+
+        results.push(Ok(format!("File {} uploaded successfully", file_name)));
     }
 
-    Ok(HttpResponse::Ok().into())
+    Ok(HttpResponse::Ok().json(results))
 }
 
 /// Return information about all avaiable files as JSON
-#[get("/midi/list")]
+/// For now, just return a list of filenames
+#[get("/midi")]
 async fn list() -> impl Responder {
-    match std::fs::read_dir("tmp") {
+    match std::fs::read_dir(MIDI_DIR) {
         Ok(entries) => {
-            let s: Vec<_> = entries
-                .flatten()
-                .map(|x| x.file_name())
-                .map(|x| x.to_str().unwrap().to_string())
+            let filenames: Vec<String> = entries
+                .filter_map(Result::ok)
+                .filter_map(|entry| entry.file_name().into_string().ok())
                 .collect();
 
-            HttpResponse::Ok().json(s)
+            HttpResponse::Ok().json(filenames)
         }
-        Err(_) => HttpResponse::InternalServerError().finish()
+        Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }
 
-// Download a single file by name
+/// Download a single file by name
 #[get("/midi/{file}")]
-async fn download(path: web::Path<String>) -> impl Responder {
-    let path = format!("./tmp/{}", path.into_inner());
-    
-    let mut file = match  File::open(&path) {
-        Ok(file) => file,
-        Err(_) => return HttpResponse::NotFound().finish(),
-    };
+async fn download(path: web::Path<String>) -> actix_web::Result<NamedFile> {
+    let path = format!("{}/{}", MIDI_DIR, sanitize_filename::sanitize(&*path));
 
-    let mut data = Vec::new();
-    match file.read_to_end(&mut data) {
-        Ok(_) => HttpResponse::Ok().body(data),
-        Err(_) => HttpResponse::InternalServerError().finish(), 
+    // verify the file exists
+    if let Err(_) = fs::metadata(&path) {
+        return actix_web::Result::Err(actix_web::error::ErrorNotFound("File not found"));
     }
 
-    // return Ok(data);
-    //stream file into a vec<u8>
-    //send in Responder
-    // HttpResponse::Ok().body("")
+    Ok(NamedFile::open(path)?)
 }
 
 /// Delete a saved file by name
 #[delete("/midi/{file}")]
 async fn delete(path: web::Path<String>) -> HttpResponse {
-    let path = format!("./tmp/{}", path);
-    match File::open(path.clone()) {
-        //have Chris explain this
-        Ok(_) => match fs::remove_file(path) {
-            Ok(_) => HttpResponse::Ok().finish(),
-            Err(_) => HttpResponse::BadRequest().finish(),
-        },
-        Err(_) => HttpResponse::NotFound().finish(),
+    let path = format!("{}/{}", MIDI_DIR, sanitize_filename::sanitize(&*path));
+
+    // verify the file exists
+    if let Err(_) = fs::metadata(&path) {
+        return HttpResponse::NotFound().finish();
+    }
+
+    // delete the file
+    match fs::remove_file(&path) {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }
 
@@ -105,8 +119,9 @@ async fn main() -> std::io::Result<()> {
             .service(upload)
             .service(list)
             .service(download)
+            .service(actix_files::Files::new("/", "dist").index_file("index.html"))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 8081))?
     .run()
     .await
 }

@@ -1,11 +1,7 @@
-use gloo::file::callbacks::FileReader;
-use gloo::file::File;
-use reqwest::{
-    multipart::{Form, Part},
-    Client,
-};
-use std::collections::HashMap;
+use gloo::file::{File, callbacks::FileReader};
+use reqwest::multipart::{Form, Part};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use web_sys::{Event, FileList, HtmlInputElement};
 use yew::html::TargetCast;
 use yew::{html, Component, Context, Html};
@@ -43,9 +39,7 @@ impl Component for UploadMidi {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Uploaded(_, _) => {
-                true
-            }
+            Msg::Uploaded(_, _) => true,
             Msg::Loaded(file_name, _file_type, data) => {
                 self.readers.remove(&file_name);
                 ctx.link().send_future(async move {
