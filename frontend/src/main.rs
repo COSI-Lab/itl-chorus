@@ -1,8 +1,6 @@
-use yew::prelude::*;
+use frontend::components::{UploadMidi, RoomJoiner};
 
-pub mod components;
-
-use components::UploadMidi;
+use yew::{function_component, Html, html};
 
 #[function_component(App)]
 fn app() -> Html {
@@ -10,8 +8,7 @@ fn app() -> Html {
         <>
             <h1> { "Welcome to the ITL Chorus" } </h1>
 
-            <h2> { "Room Code" } </h2>
-            <button> { "Join" } </button>
+            <RoomJoiner></RoomJoiner>
 
             <h2> { "Host a new room" } </h2>
             <button> { "Create" } </button>
@@ -25,6 +22,6 @@ fn app() -> Html {
 }
 
 fn main() {
-    yew::start_app::<App>();
     wasm_logger::init(wasm_logger::Config::default());
+    yew::Renderer::<App>::new().render();
 }

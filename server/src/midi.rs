@@ -1,6 +1,6 @@
 use actix_files::NamedFile;
 use actix_multipart::Multipart;
-use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, post, web, HttpResponse, Responder};
 use futures_util::TryStreamExt;
 use std::fs;
 
@@ -109,19 +109,4 @@ async fn delete(path: web::Path<String>) -> HttpResponse {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new()
-            .service(delete)
-            .service(upload)
-            .service(list)
-            .service(download)
-            .service(actix_files::Files::new("/", "dist").index_file("index.html"))
-    })
-    .bind(("127.0.0.1", 8081))?
-    .run()
-    .await
 }

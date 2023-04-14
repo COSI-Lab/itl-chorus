@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-	"itlc",
-	"itlcd",
-	"libitlc",
+	"frontend",
+	"server",
+	"types",
 ]
