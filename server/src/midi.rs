@@ -64,7 +64,7 @@ async fn upload(mut payload: Multipart) -> actix_web::Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(results))
 }
 
-/// Return information about all avaiable files as JSON
+/// Return information about all available files as JSON
 /// For now, just return a list of filenames
 #[get("/midi")]
 async fn list() -> impl Responder {
@@ -87,7 +87,7 @@ async fn download(path: web::Path<String>) -> actix_web::Result<NamedFile> {
     let path = format!("{}/{}", MIDI_DIR, sanitize_filename::sanitize(&*path));
 
     // verify the file exists
-    if let Err(_) = fs::metadata(&path) {
+    if fs::metadata(&path).is_err() {
         return actix_web::Result::Err(actix_web::error::ErrorNotFound("File not found"));
     }
 
@@ -100,7 +100,7 @@ async fn delete(path: web::Path<String>) -> HttpResponse {
     let path = format!("{}/{}", MIDI_DIR, sanitize_filename::sanitize(&*path));
 
     // verify the file exists
-    if let Err(_) = fs::metadata(&path) {
+    if fs::metadata(&path).is_err() {
         return HttpResponse::NotFound().finish();
     }
 

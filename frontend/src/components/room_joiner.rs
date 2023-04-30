@@ -8,9 +8,7 @@ use yew::prelude::*;
 pub fn RoomJoiner() -> Html {
     html! {
         <div>
-            <input type="text" placeholder="Room Code" />
             <button> { "Join" } </button>
         </div>
     }
 }
-

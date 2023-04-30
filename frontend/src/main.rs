@@ -1,23 +1,18 @@
-use frontend::components::{UploadMidi, RoomJoiner};
+mod components;
+mod pages;
+mod router;
 
-use yew::{function_component, Html, html};
+use yew::{function_component, html, Html};
+use yew_router::{BrowserRouter, Switch};
+
+use crate::router::switch;
 
 #[function_component(App)]
 fn app() -> Html {
     html! {
-        <>
-            <h1> { "Welcome to the ITL Chorus" } </h1>
-
-            <RoomJoiner></RoomJoiner>
-
-            <h2> { "Host a new room" } </h2>
-            <button> { "Create" } </button>
-
-            <h2> { "most recently used" } </h2>
-            <h2> { "most frequently used" } </h2>
-
-            <UploadMidi></UploadMidi>
-        </>
+        <BrowserRouter>
+            <Switch<router::Route> render={switch} />
+        </BrowserRouter>
     }
 }
 

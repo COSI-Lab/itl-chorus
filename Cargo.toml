@@ -3,5 +3,4 @@
 members = [
 	"frontend",
 	"server",
-	"types",
 ]

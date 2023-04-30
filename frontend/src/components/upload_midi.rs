@@ -1,4 +1,4 @@
-use gloo::file::{File, callbacks::FileReader};
+use gloo::file::{callbacks::FileReader, File};
 use reqwest::multipart::{Form, Part};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -7,7 +7,11 @@ use yew::html::TargetCast;
 use yew::{html, Component, Context, Html};
 
 // Uploads a midi file to the server
-async fn upload(location: String, file_name: String, data: Vec<u8>) -> Result<reqwest::Response, reqwest::Error> {
+async fn upload(
+    location: String,
+    file_name: String,
+    data: Vec<u8>,
+) -> Result<reqwest::Response, reqwest::Error> {
     let part = Part::bytes(Cow::from(data)).file_name(file_name.clone());
     let form = Form::new().part("upload", part);
 
@@ -92,7 +96,7 @@ impl Component for UploadMidi {
             Msg::Uploaded(file_name, _has_err) => {
                 self.uploaders.remove(&file_name);
                 true
-            },
+            }
             Msg::Loaded(file_name, _file_type, data) => {
                 self.readers.remove(&file_name);
                 self.uploaders.insert(file_name.clone());
