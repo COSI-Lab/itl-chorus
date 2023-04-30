@@ -77,7 +77,10 @@ async fn list() -> impl Responder {
 
             HttpResponse::Ok().json(filenames)
         }
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Error reading midi directory: {}", err);
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -107,6 +110,9 @@ async fn delete(path: web::Path<String>) -> HttpResponse {
     // delete the file
     match fs::remove_file(&path) {
         Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Error deleting file: {}", err);
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }

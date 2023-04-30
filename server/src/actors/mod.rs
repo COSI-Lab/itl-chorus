@@ -1,10 +1,10 @@
 use actix::prelude::*;
 
-mod room;
 mod client;
+mod room;
 
-pub use room::Room;
 pub use client::Client;
+pub use room::Room;
 
 #[derive(Message)]
 #[rtype(result = "()")]

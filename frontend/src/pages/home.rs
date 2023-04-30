@@ -1,6 +1,6 @@
 use yew::prelude::*;
 
-use crate::components::{RoomJoiner, RoomCreator};
+use crate::components::{RoomCreator, RoomJoiner};
 
 #[function_component(Home)]
 pub fn home() -> Html {

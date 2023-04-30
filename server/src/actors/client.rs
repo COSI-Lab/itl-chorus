@@ -10,7 +10,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(addr: Addr<Room>) -> Self {
-        Self { 
+        Self {
             name: uuid::Uuid::new_v4(),
             addr,
         }
@@ -48,7 +48,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Client {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             // Close handler
             Ok(ws::Message::Close(reason)) => {
-                log::info!("Closing websocket for ({:?}) {}", reason, self.name);
+                log::debug!("Closing websocket for ({:?}) {}", reason, self.name);
                 ctx.stop();
             }
             // Text message handler
@@ -69,10 +69,6 @@ impl Handler<Message> for Client {
 
     fn handle(&mut self, msg: Message, ctx: &mut Self::Context) {
         // Send the message to the client
-        ctx.text(format!(
-            "{}: {}",
-            msg.name,
-            msg.msg,
-        ));
+        ctx.text(format!("{}: {}", msg.name, msg.msg,));
     }
 }

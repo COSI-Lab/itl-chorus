@@ -21,7 +21,15 @@ pub fn switch(route: Route) -> Html {
                 <pages::Home />
             }
         }
-        Route::Room { id } => todo!(),
-        Route::NotFound => todo!(),
+        Route::Room { id } => {
+            html! {
+                <p> { format!("Room {}", id) } </p>
+            }
+        },
+        Route::NotFound => {
+            html! {
+                <p> { "404" } </p>
+            }
+        },
     }
 }

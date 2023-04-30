@@ -15,7 +15,7 @@ async fn upload(
     let part = Part::bytes(Cow::from(data)).file_name(file_name.clone());
     let form = Form::new().part("upload", part);
 
-    let url = format!("{}/midi", location);
+    let url = format!("{}/api/midi", location);
     log::debug!("Uploading {} to {}", file_name, url);
 
     reqwest::Client::new()

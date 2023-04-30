@@ -1,6 +1,6 @@
 use actix::prelude::*;
 
-use super::{Join, Leave, Message, Client};
+use super::{Client, Join, Leave, Message};
 
 // The room actor is responsible for managing the room.
 //
@@ -16,11 +16,11 @@ impl Actor for Room {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
-        log::info!("Room {} started", self.name);
+        log::debug!("Room {} started", self.name);
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        log::info!("Room {} stopped", self.name);
+        log::debug!("Room {} stopped", self.name);
     }
 }
 
@@ -56,7 +56,7 @@ impl Handler<Join> for Room {
     type Result = ();
 
     fn handle(&mut self, msg: Join, _ctx: &mut Self::Context) -> Self::Result {
-        log::info!("{} joined room {}", msg.name, self.name);
+        log::debug!("{} joined room {}", msg.name, self.name);
         self.clients.push(msg.addr);
 
         self.send_message(Message {
@@ -70,8 +70,11 @@ impl Handler<Leave> for Room {
     type Result = ();
 
     fn handle(&mut self, msg: Leave, _ctx: &mut Self::Context) -> Self::Result {
-        log::info!("{} left room {}", msg.name, self.name);
-        self.clients.iter().position(|c| c == &msg.addr).map(|i| self.clients.remove(i));
+        log::debug!("{} left room {}", msg.name, self.name);
+        self.clients
+            .iter()
+            .position(|c| c == &msg.addr)
+            .map(|i| self.clients.remove(i));
 
         self.send_message(Message {
             name: "Server".to_string(),
@@ -84,7 +87,7 @@ impl Handler<Message> for Room {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Self::Context) -> Self::Result {
-        log::info!("{} sent message to room {}", msg.name, self.name);
+        log::debug!("{} sent message to room {}", msg.name, self.name);
         self.send_message(msg);
     }
 }
