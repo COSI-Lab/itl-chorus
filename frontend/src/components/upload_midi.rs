@@ -31,6 +31,9 @@ pub enum Msg {
     Files(Vec<File>),
 }
 
+/// Component for uploading midi files to the server
+/// 
+/// This component creates a file input and listens for changes to it.
 pub struct UploadMidi {
     readers: HashMap<String, FileReader>,
     uploaders: HashSet<String>,

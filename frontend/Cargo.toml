@@ -6,18 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0"
 gloo = "0.8"
-yew = { version = "0.20", features = ["csr"] }
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["File", "DragEvent", "DataTransfer", "Location", "Window"] }
-reqwest = { version = "0.11", features = ["multipart"] }
-log = "0.4.17"
-wasm-logger = "0.2.0"
+log = "0.4"
 midly = "0.5"
-wasm-bindgen-futures = "0.4.33"
-yew-router = "0.17.0"
+reqwest = { version = "0.11", features = ["multipart"] }
 uuid = { version = "1.3", features = ["v4", "serde"] }
-anyhow = "1.0.71"
+wasm-bindgen-futures = "0.4"
+wasm-logger = "0.2"
+web-sys = { version = "0.3", features = ["File", "DragEvent", "DataTransfer", "Location", "Window"] }
+yew-router = "0.17"
+yew = { version = "0.20", features = ["csr"] }
 
 # https://docs.rs/getrandom/latest/getrandom/#webassembly-support
 getrandom = { version = "0.2", features = ["js"] }
