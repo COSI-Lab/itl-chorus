@@ -10,9 +10,7 @@ mod midi;
 mod room;
 
 /*
- * The index page that loads the SPA
- * index:
- *      GET     /index.html     - load the index page
+ * Any unmapped request gets redirected to the index page
  *
  * A file server to handle uploading and downloading midi files
  * file server:
@@ -36,7 +34,7 @@ type Rooms = Mutex<HashMap<uuid::Uuid, actix::Addr<actors::Room>>>;
 
 /// Any request that doesn't match a static file, and isn't a part of the API gets redirected to the index page
 async fn index() -> Result<NamedFile, actix_web::Error> {
-    Ok(NamedFile::open("../frontend/dist/index.html")?)
+    Ok(NamedFile::open("dist/index.html")?)
 }
 
 #[actix_web::main]
@@ -62,7 +60,7 @@ async fn main() -> std::io::Result<()> {
                     .service(room::create_room)
                     .service(room::room_ws)
             )
-            .service(actix_files::Files::new("/", "../frontend/dist").index_file("index.html"))
+            .service(actix_files::Files::new("/", "dist").index_file("index.html"))
             .default_service(web::to(index))
             .wrap(Logger::default())
     })
