@@ -12,8 +12,9 @@ RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION
 RUN mv trunk /usr/local/bin
 
 # Build the frontend
+COPY common common
+COPY frontend frontend
 WORKDIR /frontend
-COPY frontend .
 
 RUN trunk build --release
 
@@ -21,8 +22,9 @@ RUN trunk build --release
 FROM rust:latest as backend
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
+COPY common common
+COPY server server
 WORKDIR /server
-COPY server .
 
 # TODO: Use cargo-chef https://stackoverflow.com/a/64528456
 RUN cargo build --release
