@@ -6,13 +6,14 @@
 //!      GET     /room/{id}/ws   - websocket connection for the room, the first connection is the host
 
 use crate::{
-    actors::{Client, Room},
+    actors::{Client, GetRoomInfo, Room},
     Rooms,
 };
 
 use actix::Actor;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
+use common::RoomInfo;
 
 /// Create a new room and return the id
 #[post("/room")]
@@ -26,8 +27,24 @@ pub async fn create_room(rooms: web::Data<Rooms>) -> impl Responder {
     // Add the room to the hashmap
     rooms.lock().await.insert(name, room.start());
 
+    let info = RoomInfo { id: name };
+
     // Return the id of the room
-    HttpResponse::Ok().body(name.to_string())
+    HttpResponse::Ok().json(info)
+}
+
+#[get("/room/{id}")]
+pub async fn get_room(rooms: web::Data<Rooms>, id: web::Path<uuid::Uuid>) -> impl Responder {
+    let rooms = rooms.lock().await;
+
+    match rooms.get(&id) {
+        Some(room) => {
+            let room = room.clone();
+            let info = room.send(GetRoomInfo {}).await.unwrap();
+            HttpResponse::Ok().json(info)
+        }
+        None => HttpResponse::NotFound().finish(),
+    }
 }
 
 /// Websocket connection for the room

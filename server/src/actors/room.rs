@@ -1,6 +1,6 @@
-use actix::prelude::*;
+use actix::{dev::MessageResponse, prelude::*};
 
-use super::{Client, Join, Leave, Message};
+use super::{Client, GetRoomInfo, Join, Leave, Message, RoomInfo};
 
 // The room actor is responsible for managing the room.
 //
@@ -49,6 +49,15 @@ impl Room {
         for client in self.clients.iter() {
             client.do_send(msg.clone());
         }
+    }
+}
+
+impl Handler<GetRoomInfo> for Room {
+    type Result = Result<RoomInfo, ()>;
+
+    fn handle(&mut self, _msg: GetRoomInfo, _ctx: &mut Self::Context) -> Self::Result {
+        log::debug!("Getting info for room {}", self.name);
+        Ok(RoomInfo { id: self.name })
     }
 }
 

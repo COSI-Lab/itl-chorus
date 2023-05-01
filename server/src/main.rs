@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix_files::NamedFile;
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use env_logger::Env;
 use tokio::sync::Mutex;
 
@@ -32,9 +32,13 @@ mod room;
 // Rooms are stored in a hashmap from a uuid to a room actor
 type Rooms = Mutex<HashMap<uuid::Uuid, actix::Addr<actors::Room>>>;
 
+// Route to static files
+// const STATIC_PATH: &str = "dist";
+const STATIC_PATH: &str = "../frontend/dist";
+
 /// Any request that doesn't match a static file, and isn't a part of the API gets redirected to the index page
 async fn index() -> Result<NamedFile, actix_web::Error> {
-    Ok(NamedFile::open("dist/index.html")?)
+    Ok(NamedFile::open(format!("{}/index.html", STATIC_PATH))?)
 }
 
 #[actix_web::main]
@@ -42,7 +46,7 @@ async fn main() -> std::io::Result<()> {
     // set up logging
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    log::info!("Starting server on http://localhost:8081");
+    log::info!("Starting server on http://localhost:8000");
 
     // Create a hashmap to store the rooms
     let rooms = web::Data::new(Rooms::new(HashMap::new()));
@@ -58,13 +62,13 @@ async fn main() -> std::io::Result<()> {
                     .service(midi::list)
                     .service(midi::download)
                     .service(room::create_room)
-                    .service(room::room_ws)
+                    .service(room::room_ws),
             )
-            .service(actix_files::Files::new("/", "dist").index_file("index.html"))
+            .service(actix_files::Files::new("/", STATIC_PATH).index_file("index.html"))
             .default_service(web::to(index))
             .wrap(Logger::default())
     })
-    .bind(("127.0.0.1", 8081))?
+    .bind(("127.0.0.1", 8000))?
     .run()
     .await
 }

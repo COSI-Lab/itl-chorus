@@ -23,13 +23,13 @@ pub fn switch(route: Route) -> Html {
         }
         Route::Room { id } => {
             html! {
-                <p> { format!("Room {}", id) } </p>
+                <pages::Room id={id} />
             }
-        },
+        }
         Route::NotFound => {
             html! {
                 <p> { "404" } </p>
             }
-        },
+        }
     }
 }
