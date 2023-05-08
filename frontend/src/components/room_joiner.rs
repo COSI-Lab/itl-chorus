@@ -4,20 +4,10 @@
 //
 // For now the room code is a uuid pasted as text
 
-use wasm_bindgen::{JsCast, UnwrapThrowExt};
-use web_sys::{Event, HtmlInputElement, InputEvent};
 use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
-use crate::router::Route;
-
-// This function extracts the value from an input event.
-fn get_value_from_input_event(e: InputEvent) -> String {
-    let event: Event = e.dyn_into().unwrap_throw();
-    let event_target = event.target().unwrap_throw();
-    let target: HtmlInputElement = event_target.dyn_into().unwrap_throw();
-    target.value()
-}
+use crate::{router::Route, util::get_value_from_input_event};
 
 #[function_component]
 pub fn RoomJoiner() -> Html {

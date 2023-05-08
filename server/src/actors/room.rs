@@ -1,6 +1,8 @@
-use actix::{dev::MessageResponse, prelude::*};
+use actix::prelude::*;
 
-use super::{Client, GetRoomInfo, Join, Leave, Message, RoomInfo};
+use crate::actors::IntoMessage;
+
+use super::{ChatMessage, Client, GetRoomInfo, Join, Leave, RoomInfo};
 
 // The room actor is responsible for managing the room.
 //
@@ -8,7 +10,6 @@ use super::{Client, GetRoomInfo, Join, Leave, Message, RoomInfo};
 
 pub struct Room {
     name: uuid::Uuid,
-    host: Option<Recipient<Message>>,
     clients: Vec<Addr<Client>>,
 }
 
@@ -28,7 +29,6 @@ impl Room {
     pub fn new() -> Self {
         Self {
             name: uuid::Uuid::new_v4(),
-            host: None,
             clients: Vec::new(),
         }
     }
@@ -37,15 +37,7 @@ impl Room {
         self.name
     }
 
-    pub fn host(&self) -> Option<Recipient<Message>> {
-        self.host.clone()
-    }
-
-    pub fn set_host(&mut self, host: Recipient<Message>) {
-        self.host = Some(host);
-    }
-
-    pub fn send_message(&self, msg: Message) {
+    pub fn send_message(&self, msg: ChatMessage) {
         for client in self.clients.iter() {
             client.do_send(msg.clone());
         }
@@ -68,10 +60,13 @@ impl Handler<Join> for Room {
         log::debug!("{} joined room {}", msg.name, self.name);
         self.clients.push(msg.addr);
 
-        self.send_message(Message {
-            name: "Server".to_string(),
-            msg: format!("{} joined the room", msg.name),
-        });
+        self.send_message(
+            common::Message {
+                name: "Server".to_string(),
+                msg: format!("{} joined the room", msg.name),
+            }
+            .into_message(),
+        );
     }
 }
 
@@ -85,17 +80,20 @@ impl Handler<Leave> for Room {
             .position(|c| c == &msg.addr)
             .map(|i| self.clients.remove(i));
 
-        self.send_message(Message {
-            name: "Server".to_string(),
-            msg: format!("{} left the room", msg.name),
-        });
+        self.send_message(
+            common::Message {
+                name: "Server".to_string(),
+                msg: format!("{} left the room", msg.name),
+            }
+            .into_message(),
+        );
     }
 }
 
-impl Handler<Message> for Room {
+impl Handler<ChatMessage> for Room {
     type Result = ();
 
-    fn handle(&mut self, msg: Message, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ChatMessage, _ctx: &mut Self::Context) -> Self::Result {
         log::debug!("{} sent message to room {}", msg.name, self.name);
         self.send_message(msg);
     }

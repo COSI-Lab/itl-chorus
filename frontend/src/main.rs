@@ -2,6 +2,7 @@ pub mod api;
 mod components;
 mod pages;
 mod router;
+pub mod util;
 
 use yew::{function_component, html, Html};
 use yew_router::{BrowserRouter, Switch};

@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
 
-use super::{room::Room, Join, Leave, Message};
+use super::{ChatMessage, Join, Leave, Room};
 
 pub struct Client {
     name: uuid::Uuid,
@@ -53,22 +53,25 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Client {
             }
             // Text message handler
             Ok(ws::Message::Text(text)) => {
-                // Send the message to the room
-                self.addr.do_send(Message {
-                    name: self.name.to_string(),
-                    msg: text.to_string(),
-                });
+                if let Ok(msg) = serde_json::from_str::<common::UploadMessage>(&text) {
+                    self.addr.do_send(ChatMessage(common::Message {
+                        name: self.name.to_string(),
+                        msg: msg.msg,
+                    }))
+                }
             }
             _ => (), // Ignore byte messages and errors
         }
     }
 }
 
-impl Handler<Message> for Client {
+impl Handler<ChatMessage> for Client {
     type Result = ();
 
-    fn handle(&mut self, msg: Message, ctx: &mut Self::Context) {
+    fn handle(&mut self, msg: ChatMessage, ctx: &mut Self::Context) {
+        log::debug!("Sending message to ({}) {}", self.name, msg.msg);
+
         // Send the message to the client
-        ctx.text(format!("{}: {}", msg.name, msg.msg,));
+        ctx.text(serde_json::to_string(&msg.0).unwrap());
     }
 }
