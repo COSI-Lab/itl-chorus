@@ -1,55 +1,78 @@
+use std::sync::Arc;
+
 use actix::prelude::*;
+use common::server_to_client::{ChatMessage, ServerToClientWS};
 
-use crate::actors::IntoMessage;
+use crate::names::Names;
 
-use super::{ChatMessage, Client, GetRoomInfo, Join, Leave, RoomInfo};
+use super::{Client, Envelope, EnvelopeExt, GetRoomInfo, Join, Leave, Message};
 
 // The room actor is responsible for managing the room.
 //
 // Rooms have a host and a list of clients.
 
 pub struct Room {
-    name: uuid::Uuid,
+    addr: Option<Addr<Self>>,
+    uuid: uuid::Uuid,
     clients: Vec<Addr<Client>>,
+    names: Names<Addr<Client>>,
 }
 
 impl Actor for Room {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
-        log::debug!("Room {} started", self.name);
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::debug!("Room {} started", self.uuid);
+        self.addr = Some(ctx.address());
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        log::debug!("Room {} stopped", self.name);
+        log::debug!("Room {} stopped", self.uuid);
+    }
+}
+
+impl EnvelopeExt for Room {
+    fn envelope<T>(&self, msg: T) -> super::Envelope<T, Self> {
+        Envelope {
+            inner: msg,
+            addr: self.addr.clone().unwrap(),
+        }
     }
 }
 
 impl Room {
     pub fn new() -> Self {
         Self {
-            name: uuid::Uuid::new_v4(),
+            uuid: uuid::Uuid::new_v4(),
             clients: Vec::new(),
+            names: Names::new(),
+            addr: None,
         }
     }
 
-    pub fn name(&self) -> uuid::Uuid {
-        self.name
+    pub fn uuid(&self) -> uuid::Uuid {
+        self.uuid
     }
 
-    pub fn send_message(&self, msg: ChatMessage) {
-        for client in self.clients.iter() {
-            client.do_send(msg.clone());
+    pub fn broadcast(&self, msg: ServerToClientWS) {
+        let parsed = Arc::new(serde_json::to_string(&msg).unwrap());
+
+        for client in &self.clients {
+            client.do_send(self.envelope(parsed.clone()));
         }
     }
 }
 
-impl Handler<GetRoomInfo> for Room {
-    type Result = Result<RoomInfo, ()>;
+impl Handler<Message> for Room {
+    type Result = ();
 
-    fn handle(&mut self, _msg: GetRoomInfo, _ctx: &mut Self::Context) -> Self::Result {
-        log::debug!("Getting info for room {}", self.name);
-        Ok(RoomInfo { id: self.name })
+    fn handle(&mut self, msg: Message, _ctx: &mut Self::Context) -> Self::Result {
+        log::debug!("Received message from client {:?}", msg.addr);
+
+        self.broadcast(ServerToClientWS::Chat(ChatMessage {
+            name: *self.names.get(&msg.addr).unwrap(),
+            msg: msg.inner.msg,
+        }));
     }
 }
 
@@ -57,16 +80,9 @@ impl Handler<Join> for Room {
     type Result = ();
 
     fn handle(&mut self, msg: Join, _ctx: &mut Self::Context) -> Self::Result {
-        log::debug!("{} joined room {}", msg.name, self.name);
+        let name = self.names.generate().unwrap(); // TODO: Error
+        self.names.insert(msg.addr.clone(), name);
         self.clients.push(msg.addr);
-
-        self.send_message(
-            common::Message {
-                name: "Server".to_string(),
-                msg: format!("{} joined the room", msg.name),
-            }
-            .into_message(),
-        );
     }
 }
 
@@ -74,27 +90,18 @@ impl Handler<Leave> for Room {
     type Result = ();
 
     fn handle(&mut self, msg: Leave, _ctx: &mut Self::Context) -> Self::Result {
-        log::debug!("{} left room {}", msg.name, self.name);
-        self.clients
-            .iter()
-            .position(|c| c == &msg.addr)
-            .map(|i| self.clients.remove(i));
-
-        self.send_message(
-            common::Message {
-                name: "Server".to_string(),
-                msg: format!("{} left the room", msg.name),
-            }
-            .into_message(),
-        );
+        self.clients.retain(|client| client != &msg.addr);
+        self.names.remove(&msg.addr);
     }
 }
 
-impl Handler<ChatMessage> for Room {
-    type Result = ();
+impl Handler<GetRoomInfo> for Room {
+    type Result = Result<common::RoomInfo, ()>;
 
-    fn handle(&mut self, msg: ChatMessage, _ctx: &mut Self::Context) -> Self::Result {
-        log::debug!("{} sent message to room {}", msg.name, self.name);
-        self.send_message(msg);
+    fn handle(&mut self, _msg: GetRoomInfo, _ctx: &mut Self::Context) -> Self::Result {
+        Ok(common::RoomInfo {
+            id: self.uuid,
+            clients: self.clients.len(),
+        })
     }
 }

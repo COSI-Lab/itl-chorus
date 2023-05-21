@@ -3,8 +3,6 @@
 //! Consistency is maintained by having the server and frontend share the same
 //! types from the `common` module
 
-use futures::{stream::SplitSink, Sink, SinkExt, StreamExt};
-use gloo::net::websocket::futures::WebSocket;
 use gloo_net::http::Request;
 use thiserror::Error;
 use yew::Callback;
@@ -17,7 +15,10 @@ pub enum ApiError {
     ParseFailed(#[from] serde_json::Error),
 }
 
-/// Constructs a callback that, when called, builds a request and sends it to the server
+/// This function takes a Callback and a function that builds a request
+///
+/// It returns another callback, that when called, will make the request and
+/// emit the result to the original callback
 pub fn make_request<T, E>(
     request: impl Fn() -> Request + 'static,
     cb: yew::Callback<Result<T, ApiError>>,

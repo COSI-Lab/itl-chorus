@@ -1,54 +1,49 @@
-use std::ops::Deref;
-
-use actix::prelude::*;
-use common::RoomInfo;
-
 mod client;
 mod room;
 
+use std::sync::Arc;
+
+use actix::{Actor, Addr};
 pub use client::Client;
+use common::{
+    client_to_server::{self, GetRoomInfoRequest},
+    RoomInfo,
+};
 pub use room::Room;
 
-trait IntoMessage {
-    type Target;
-
-    fn into_message(self) -> Self::Target;
+/// An envelope is a message with a "return address". It allows actors to understand where a message
+/// came from.
+#[derive(actix::Message)]
+#[rtype(result = "()")]
+pub struct Envelope<T, A: Actor> {
+    pub inner: T,
+    pub addr: Addr<A>,
 }
 
-#[derive(Message)]
+trait EnvelopeExt: Actor {
+    // An actor can create an envelope
+    fn envelope<T>(&self, msg: T) -> Envelope<T, Self>;
+}
+
+/// Created when a client sends a message to the server.
+pub type Message = Envelope<client_to_server::UploadMessage, Client>;
+
+pub struct JoinInner {}
+
+/// Created when a client joins a room.
+pub type Join = Envelope<JoinInner, Client>;
+
+pub struct LeaveInner {}
+
+/// Created when a client leaves a room.
+pub type Leave = Envelope<LeaveInner, Client>;
+
+/// Messages broadcasted to all clients in a room.
+pub type Broadcast = Envelope<Arc<String>, Room>;
+
+/// Used by the http server to request room info.
+#[derive(actix::Message)]
 #[rtype(result = "Result<RoomInfo, ()>")]
-pub struct GetRoomInfo;
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Join {
-    pub name: String,
-    pub addr: Addr<Client>,
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Leave {
-    pub name: String,
-    pub addr: Addr<Client>,
-}
-
-#[derive(Message, Clone)]
-#[rtype(result = "()")]
-pub struct ChatMessage(common::Message);
-
-impl Deref for ChatMessage {
-    type Target = common::Message;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl IntoMessage for common::Message {
-    type Target = ChatMessage;
-
-    fn into_message(self) -> Self::Target {
-        ChatMessage(self)
-    }
+pub struct GetRoomInfo {
+    pub req: GetRoomInfoRequest,
 }

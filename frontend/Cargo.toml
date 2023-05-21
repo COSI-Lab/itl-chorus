@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
+common = { path = "../common", features = [] }
 
 anyhow = "1.0"
-gloo = "0.8"
 # gloo-net = { version = "0.2", features = ["http", "websocket"] }
-gloo-net = { git = "https://github.com/Alextopher/gloo", branch = "c-common-traits", features = ["http", "websocket"] }
+# gloo-net = { git = "https://github.com/Alextopher/gloo", branch = "http", features = ["http", "websocket"] }
+gloo-net = { path = "/home/mahonec/p/github.com/Alextopher/gloo/crates/net", features = ["http", "websocket"] }
+gloo-file = "0.2"
 getrandom = { version = "0.2", features = ["js"] } # https://docs.rs/getrandom/latest/getrandom/#webassembly-support
 js-sys = "0.3"
 log = "0.4"

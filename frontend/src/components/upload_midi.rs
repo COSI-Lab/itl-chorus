@@ -1,4 +1,4 @@
-use gloo::file::{callbacks::FileReader, File};
+use gloo_file::{callbacks::FileReader, File};
 use reqwest::multipart::{Form, Part};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -127,7 +127,7 @@ impl Component for UploadMidi {
                         let link = ctx.link().clone();
                         let file_name = file_name.clone();
 
-                        gloo::file::callbacks::read_as_bytes(&file, move |res| {
+                        gloo_file::callbacks::read_as_bytes(&file, move |res| {
                             link.send_message(Msg::Loaded(
                                 file_name,
                                 file_type,

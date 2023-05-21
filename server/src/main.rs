@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 
 mod actors;
 mod midi;
+mod names;
 mod room;
 
 /*

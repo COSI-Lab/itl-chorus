@@ -8,7 +8,9 @@ pub struct InputProps {
     pub callback: Callback<String>,
 }
 
-/// A chat input component. This component is used to send messages to the chat.
+/// The input component for the chat component.
+///
+/// It maintains a text input and a button to send a message.
 #[function_component(ChatInput)]
 pub fn chat_input(props: &InputProps) -> Html {
     let input_node_ref = use_node_ref();

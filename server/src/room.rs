@@ -13,38 +13,51 @@ use crate::{
 use actix::Actor;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
-use common::RoomInfo;
+use common::{client_to_server::GetRoomInfoRequest, RoomInfo};
 
 /// Create a new room and return the id
 #[post("/room")]
 pub async fn create_room(rooms: web::Data<Rooms>) -> impl Responder {
     // Create a new room actor
     let room = Room::new();
-    let name = room.name();
+    let name = room.uuid();
 
     log::debug!("Created room {}", name);
 
     // Add the room to the hashmap
     rooms.lock().await.insert(name, room.start());
 
-    let info = RoomInfo { id: name };
+    let info = RoomInfo {
+        id: name,
+        clients: 0,
+    };
 
     // Return the id of the room
     HttpResponse::Ok().json(info)
 }
 
 #[get("/room/{id}")]
-pub async fn get_room(rooms: web::Data<Rooms>, id: web::Path<uuid::Uuid>) -> impl Responder {
+// Parse the body as a GetRoomInfoRequest
+pub async fn get_room_info(
+    rooms: web::Data<Rooms>,
+    id: web::Path<uuid::Uuid>,
+    req: web::Json<GetRoomInfoRequest>,
+) -> impl Responder {
     let rooms = rooms.lock().await;
 
-    match rooms.get(&id) {
-        Some(room) => {
-            let room = room.clone();
-            let info = room.send(GetRoomInfo {}).await.unwrap();
-            HttpResponse::Ok().json(info)
-        }
-        None => HttpResponse::NotFound().finish(),
-    }
+    let room = match rooms.get(&id) {
+        Some(room) => room,
+        None => return HttpResponse::NotFound().finish(),
+    };
+
+    let req = GetRoomInfo {
+        req: req.into_inner(),
+    };
+
+    // Safe to unwrap because get_room_info should never fail
+    let info = room.send(req).await.unwrap().unwrap();
+
+    HttpResponse::Ok().json(info)
 }
 
 /// Websocket connection for the room
@@ -63,9 +76,6 @@ pub async fn room_ws(
     };
 
     let client = Client::new(room.clone());
-    let name = client.name();
-
-    log::debug!("{} joined room {}", name, id);
 
     ws::start(client, &req, stream)
 }

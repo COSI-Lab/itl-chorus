@@ -1,5 +1,6 @@
 mod chat;
 mod chat_input;
+mod chat_message;
 mod room_creator;
 mod room_joiner;
 mod upload_midi;

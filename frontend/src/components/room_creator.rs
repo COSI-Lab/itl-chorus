@@ -14,7 +14,7 @@ pub fn RoomCreator() -> Html {
 
     let onclick = {
         make_request(
-            || Request::post("/api/room").build().unwrap(),
+            || Request::post("/api/room").build(),
             Callback::from(move |response: Result<RoomInfo, ApiError>| match response {
                 Ok(info) => navigator.push(&Route::Room { id: info.id }),
                 Err(e) => log::error!("Failed to create room: {}", e),

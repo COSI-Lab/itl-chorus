@@ -1,23 +1,35 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
+use common::client_to_server::ClientToServerWS;
 
-use super::{ChatMessage, Join, Leave, Room};
+use super::{Broadcast, Envelope, EnvelopeExt, JoinInner, LeaveInner, Room};
 
 pub struct Client {
-    name: uuid::Uuid,
-    addr: Addr<Room>, // The room actor
+    room: Addr<Room>, // The room actor
+    addr: Option<Addr<Self>>,
+}
+
+impl EnvelopeExt for Client {
+    fn envelope<T>(&self, msg: T) -> super::Envelope<T, Self> {
+        Envelope {
+            inner: msg,
+            addr: self.addr.clone().unwrap(),
+        }
+    }
 }
 
 impl Client {
-    pub fn new(addr: Addr<Room>) -> Self {
-        Self {
-            name: uuid::Uuid::new_v4(),
-            addr,
-        }
+    pub fn new(room: Addr<Room>) -> Self {
+        Self { room, addr: None }
     }
 
-    pub fn name(&self) -> uuid::Uuid {
-        self.name
+    fn handle_client_message(&mut self, msg: ClientToServerWS) {
+        match msg {
+            ClientToServerWS::Upload(msg) => {
+                log::debug!("Received message from ({:?}) {}", self.addr, msg.msg);
+                self.room.do_send(self.envelope(msg));
+            }
+        }
     }
 }
 
@@ -25,19 +37,13 @@ impl Actor for Client {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        // Add the client to the room
-        self.addr.do_send(Join {
-            name: self.name.to_string(),
-            addr: ctx.address(),
-        });
+        self.addr = Some(ctx.address());
+
+        self.room.do_send(self.envelope(JoinInner {}))
     }
 
-    fn stopped(&mut self, ctx: &mut Self::Context) {
-        // Remove the client from the room
-        self.addr.do_send(Leave {
-            name: self.name.to_string(),
-            addr: ctx.address(),
-        });
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        self.room.do_send(self.envelope(LeaveInner {}))
     }
 }
 
@@ -48,30 +54,25 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Client {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             // Close handler
             Ok(ws::Message::Close(reason)) => {
-                log::debug!("Closing websocket for ({:?}) {}", reason, self.name);
+                log::debug!("Closing {:?} : {:?}", self.addr, reason);
                 ctx.stop();
             }
             // Text message handler
-            Ok(ws::Message::Text(text)) => {
-                if let Ok(msg) = serde_json::from_str::<common::UploadMessage>(&text) {
-                    self.addr.do_send(ChatMessage(common::Message {
-                        name: self.name.to_string(),
-                        msg: msg.msg,
-                    }))
+            Ok(ws::Message::Text(text)) => match serde_json::from_str::<ClientToServerWS>(&text) {
+                Ok(msg) => self.handle_client_message(msg),
+                Err(err) => {
+                    log::warn!("Error parsing message: {}", err);
                 }
-            }
+            },
             _ => (), // Ignore byte messages and errors
         }
     }
 }
 
-impl Handler<ChatMessage> for Client {
+impl Handler<Broadcast> for Client {
     type Result = ();
 
-    fn handle(&mut self, msg: ChatMessage, ctx: &mut Self::Context) {
-        log::debug!("Sending message to ({}) {}", self.name, msg.msg);
-
-        // Send the message to the client
-        ctx.text(serde_json::to_string(&msg.0).unwrap());
+    fn handle(&mut self, msg: Broadcast, ctx: &mut Self::Context) -> Self::Result {
+        ctx.text(msg.inner.as_ref().as_str())
     }
 }

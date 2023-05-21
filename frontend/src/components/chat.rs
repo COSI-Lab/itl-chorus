@@ -1,30 +1,43 @@
 use std::sync::Arc;
 
+use common::{
+    client_to_server::{ClientToServerWS, UploadMessage},
+    server_to_client::ServerToClientWS,
+};
 use futures::{lock::Mutex, stream::SplitSink, SinkExt, StreamExt};
-use gloo::net::websocket::{futures::WebSocket, Message};
+use gloo_net::websocket::{futures::WebSocket, Message};
 use yew::prelude::*;
 
-use crate::components::chat_input::ChatInput;
+use crate::components::{chat_input::ChatInput, chat_message::ChatMessage};
+
+use super::chat_message::ChatMessageProps;
 
 #[derive(Properties, PartialEq)]
 pub struct ChatProps {
     pub id: uuid::Uuid,
 }
 
-pub enum ChatMessage {
-    Received(common::Message),
-    Send(String),
+pub enum Msg {
+    Received(ServerToClientWS),
+    SendMsg(String),
     Sent,
 }
 
 pub struct Chat {
     writer: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    messages: Vec<(i32, common::Message)>,
+    messages: Vec<(i32, ChatMessageProps)>,
     last_id: i32,
 }
 
+impl Chat {
+    fn add_message(&mut self, msg: ChatMessageProps) {
+        self.last_id += 1;
+        self.messages.push((self.last_id, msg));
+    }
+}
+
 impl Component for Chat {
-    type Message = ChatMessage;
+    type Message = Msg;
     type Properties = ChatProps;
 
     fn create(ctx: &Context<Self>) -> Self {
@@ -42,8 +55,8 @@ impl Component for Chat {
         let read = read.filter_map(|m| async {
             match m {
                 Ok(Message::Text(s)) => {
-                    if let Ok(msg) = serde_json::from_str::<common::Message>(&s) {
-                        Some(ChatMessage::Received(msg))
+                    if let Ok(msg) = serde_json::from_str::<ServerToClientWS>(&s) {
+                        Some(Msg::Received(msg))
                     } else {
                         None
                     }
@@ -67,14 +80,18 @@ impl Component for Chat {
                 <h2> {"Messages"} </h2>
                 <ul>
                 {
-                    self.messages.iter().map(|msg|
-                        html!{<li key={msg.0.to_string()}> {format!("{}: {}", msg.1.name, msg.1.msg)} </li>}
-                    ).collect::<Html>()
+                    for self.messages.iter().map(|(id, msg)| {
+                        html! {
+                            <li key={*id}>
+                                <ChatMessage name={msg.name.clone()} msg={msg.msg.clone()} />
+                            </li>
+                        }
+                    })
                 }
                 </ul>
                 <h3> {"Send a message"} </h3>
                 <ChatInput callback={ctx.link().callback(|s| {
-                    ChatMessage::Send(s)
+                    Msg::SendMsg(s)
                 })} />
             </>
         }
@@ -82,26 +99,44 @@ impl Component for Chat {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            ChatMessage::Received(msg) => {
-                self.messages.push((self.last_id, msg));
-                self.last_id += 1;
-                true
-            }
-            ChatMessage::Send(msg) => {
+            Msg::Received(msg) => match msg {
+                ServerToClientWS::Chat(msg) => {
+                    self.add_message(ChatMessageProps {
+                        name: msg.name.to_string(),
+                        msg: msg.msg,
+                    });
+                    true
+                }
+                ServerToClientWS::Join(msg) => {
+                    self.add_message(ChatMessageProps {
+                        name: "Server".to_string(),
+                        msg: format!("{} joined the room", msg.name),
+                    });
+                    true
+                }
+                ServerToClientWS::Leave(msg) => {
+                    self.add_message(ChatMessageProps {
+                        name: "Server".to_string(),
+                        msg: format!("{} left the room", msg.name),
+                    });
+                    true
+                }
+            },
+            Msg::SendMsg(msg) => {
                 let writer = self.writer.clone();
+                let message = ClientToServerWS::Upload(UploadMessage { msg });
+                let message = Message::Text(serde_json::to_string(&message).unwrap());
 
                 ctx.link().send_future(async move {
                     let mut writer = writer.lock().await;
-
-                    let message = serde_json::to_string(&common::UploadMessage { msg }).unwrap();
-                    writer.send(Message::Text(message)).await.unwrap();
-
-                    ChatMessage::Sent
+                    writer.send(message).await.unwrap();
+                    Msg::Sent
                 });
 
                 false
             }
-            ChatMessage::Sent => false,
+            // noop
+            Msg::Sent => false,
         }
     }
 }
