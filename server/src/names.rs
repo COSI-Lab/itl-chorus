@@ -41,7 +41,7 @@ where
     }
 
     pub fn get(&self, k: &K) -> Option<&Name> {
-        self.names.get(&k)
+        self.names.get(k)
     }
 
     pub fn insert(&mut self, k: K, name: Name) {
@@ -69,7 +69,7 @@ where
 
     /// Creates a new name that is not already in the collection
     ///
-    /// Returns None if all names have been taken
+    /// Returns None if all names have been used
     pub fn generate(&mut self) -> Option<Name> {
         let mut rng = rand::thread_rng();
 

@@ -12,6 +12,7 @@ pub fn chat_message(props: &ChatMessageProps) -> Html {
     html! {
         <div>
             <span>{ &props.name }</span>
+            <span>{ ":" }</span>
             <span>{ &props.msg }</span>
         </div>
     }

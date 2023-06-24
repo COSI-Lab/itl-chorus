@@ -10,7 +10,6 @@ use super::{Client, Envelope, EnvelopeExt, GetRoomInfo, Join, Leave, Message};
 // The room actor is responsible for managing the room.
 //
 // Rooms have a host and a list of clients.
-
 pub struct Room {
     addr: Option<Addr<Self>>,
     uuid: uuid::Uuid,

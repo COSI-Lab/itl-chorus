@@ -26,6 +26,5 @@ wasm-logger = "0.2"
 web-sys = { version = "0.3", features = ["File", "DragEvent", "DataTransfer", "Location", "Window"] }
 yew-router = "0.17"
 yew = { version = "0.20", features = ["csr"] }
-futures = "0.3.28"
-serde-wasm-bindgen = "0.5.0"
-
+futures = "0.3"
+serde-wasm-bindgen = "0.5"

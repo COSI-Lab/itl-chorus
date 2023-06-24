@@ -1,3 +1,4 @@
+use wasm_bindgen::prelude::wasm_bindgen;
 use yew::prelude::*;
 
 use crate::components::Chat;
@@ -11,11 +12,16 @@ pub enum RoomMessage {}
 
 pub struct Room {}
 
+#[wasm_bindgen]
+extern "C" {
+    fn play();
+}
+
 impl Component for Room {
     type Message = RoomMessage;
     type Properties = RoomProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {}
     }
 
@@ -25,11 +31,13 @@ impl Component for Room {
                 <p>{ format!("Room {}", ctx.props().id) }</p>
 
                 <Chat id={ ctx.props().id } />
+
+                <button onclick={ Callback::from(|_| play()) }> { "Play" } </button>
             </>
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
         false
     }
 }

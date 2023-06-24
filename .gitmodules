@@ -1,0 +1,3 @@
+[submodule "midicube-sys/vendor/midicube"]
+	path = midicube-sys/vendor/midicube
+	url = https://github.com/mscuthbert/midicube.git
