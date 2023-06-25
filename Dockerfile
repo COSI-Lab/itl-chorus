@@ -2,14 +2,12 @@
 ### Build the frontend
 FROM rust:latest as frontend
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
-ARG TRUNK_VERSION=v0.16.0
 
 # Requires the wasm target
 RUN rustup target add wasm32-unknown-unknown
 
 # Install trunk
-RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-RUN mv trunk /usr/local/bin
+RUN cargo install --git https://github.com/thedodd/trunk.git trunk
 
 # Build the frontend
 COPY common common

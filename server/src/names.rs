@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common::names::{Animal, Color, Name};
+use common::name::{Animal, Color, Name};
 use once_cell::sync::Lazy;
 use rand::Rng;
 
@@ -49,19 +49,21 @@ where
         self.rev.insert(name, k);
     }
 
-    pub fn remove(&mut self, k: &K) {
-        if let Some(name) = self.names.remove(k) {
-            self.rev.remove(&name);
+    pub fn remove(&mut self, k: &K) -> Option<Name> {
+        let name = self.names.remove(k);
+        if let Some(name) = &name {
+            self.rev.remove(name);
         }
+        name
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &Name)> {
-        self.names.iter()
-    }
+    // pub fn iter(&self) -> impl Iterator<Item = (&K, &Name)> {
+    //     self.names.iter()
+    // }
 
-    pub fn contains_key(&self, k: &K) -> bool {
-        self.names.contains_key(k)
-    }
+    // pub fn contains_key(&self, k: &K) -> bool {
+    //     self.names.contains_key(k)
+    // }
 
     pub fn contains_name(&self, name: &Name) -> bool {
         self.rev.contains_key(name)

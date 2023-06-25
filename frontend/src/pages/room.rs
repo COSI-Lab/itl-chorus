@@ -1,7 +1,6 @@
-use wasm_bindgen::prelude::wasm_bindgen;
 use yew::prelude::*;
 
-use crate::components::Chat;
+use crate::components::ChatComponent;
 
 #[derive(Properties, PartialEq)]
 pub struct RoomProps {
@@ -11,11 +10,6 @@ pub struct RoomProps {
 pub enum RoomMessage {}
 
 pub struct Room {}
-
-#[wasm_bindgen]
-extern "C" {
-    fn play();
-}
 
 impl Component for Room {
     type Message = RoomMessage;
@@ -30,9 +24,7 @@ impl Component for Room {
             <>
                 <p>{ format!("Room {}", ctx.props().id) }</p>
 
-                <Chat id={ ctx.props().id } />
-
-                <button onclick={ Callback::from(|_| play()) }> { "Play" } </button>
+                <ChatComponent id={ ctx.props().id } />
             </>
         }
     }

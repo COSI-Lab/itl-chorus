@@ -28,3 +28,4 @@ yew-router = "0.17"
 yew = { version = "0.20", features = ["csr"] }
 futures = "0.3"
 serde-wasm-bindgen = "0.5"
+yew-agent = "0.2.0"

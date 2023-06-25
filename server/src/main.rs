@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use actix_files::NamedFile;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use env_logger::Env;
-use tokio::sync::Mutex;
+use room::Room;
+use tokio::sync::RwLock;
 
 mod actors;
-mod midi;
+mod api;
 mod names;
 mod room;
 
@@ -30,8 +31,8 @@ mod room;
  *      GET     /api/room/{id}/ws   - websocket connection for the room, the first connection is the host
  */
 
-// Rooms are stored in a hashmap from a uuid to a room actor
-type Rooms = Mutex<HashMap<uuid::Uuid, actix::Addr<actors::Room>>>;
+// Rooms are stored in a hashmap with the key being the room id
+type Rooms = RwLock<HashMap<uuid::Uuid, Room>>;
 
 // Route to static files
 // const STATIC_PATH: &str = "dist";
@@ -58,12 +59,12 @@ async fn main() -> std::io::Result<()> {
             .service(
                 // API routes
                 web::scope("/api")
-                    .service(midi::delete)
-                    .service(midi::upload)
-                    .service(midi::list)
-                    .service(midi::download)
-                    .service(room::create_room)
-                    .service(room::room_ws),
+                    .service(api::midi::delete)
+                    .service(api::midi::upload)
+                    .service(api::midi::list)
+                    .service(api::midi::download)
+                    .service(api::room::create_room)
+                    .service(api::room::room_ws),
             )
             .service(actix_files::Files::new("/", STATIC_PATH).index_file("index.html"))
             .default_service(web::to(index))

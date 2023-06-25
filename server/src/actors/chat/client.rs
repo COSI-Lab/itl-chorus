@@ -1,16 +1,18 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
-use common::client_to_server::ClientToServerWS;
+use common::client_to_server;
 
-use super::{Broadcast, Envelope, EnvelopeExt, JoinInner, LeaveInner, Room};
+use crate::actors::{Envelope, EnvelopeExt};
 
-pub struct Client {
-    room: Addr<Room>, // The room actor
+use super::{Broadcast, ChatRoom, JoinInner, LeaveInner};
+
+pub struct ChatClient {
+    room: Addr<ChatRoom>, // The room actor
     addr: Option<Addr<Self>>,
 }
 
-impl EnvelopeExt for Client {
-    fn envelope<T>(&self, msg: T) -> super::Envelope<T, Self> {
+impl EnvelopeExt for ChatClient {
+    fn envelope<T>(&self, msg: T) -> Envelope<T, Self> {
         Envelope {
             inner: msg,
             addr: self.addr.clone().unwrap(),
@@ -18,27 +20,21 @@ impl EnvelopeExt for Client {
     }
 }
 
-impl Client {
-    pub fn new(room: Addr<Room>) -> Self {
+impl ChatClient {
+    pub fn new(room: Addr<ChatRoom>) -> Self {
         Self { room, addr: None }
     }
 
-    fn handle_client_message(&mut self, msg: ClientToServerWS) {
-        match msg {
-            ClientToServerWS::Upload(msg) => {
-                log::debug!("Received message from ({:?}) {}", self.addr, msg.msg);
-                self.room.do_send(self.envelope(msg));
-            }
-        }
+    fn handle_client_message(&mut self, msg: client_to_server::Chat) {
+        self.room.do_send(self.envelope(msg));
     }
 }
 
-impl Actor for Client {
+impl Actor for ChatClient {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.addr = Some(ctx.address());
-
         self.room.do_send(self.envelope(JoinInner {}))
     }
 
@@ -47,7 +43,7 @@ impl Actor for Client {
     }
 }
 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Client {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ChatClient {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             // Ping handler
@@ -58,21 +54,24 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Client {
                 ctx.stop();
             }
             // Text message handler
-            Ok(ws::Message::Text(text)) => match serde_json::from_str::<ClientToServerWS>(&text) {
-                Ok(msg) => self.handle_client_message(msg),
-                Err(err) => {
-                    log::warn!("Error parsing message: {}", err);
+            Ok(ws::Message::Text(text)) => {
+                match serde_json::from_str::<client_to_server::Chat>(&text) {
+                    Ok(msg) => self.handle_client_message(msg),
+                    Err(err) => {
+                        log::warn!("Error parsing message: {}", err);
+                    }
                 }
-            },
+            }
             _ => (), // Ignore byte messages and errors
         }
     }
 }
 
-impl Handler<Broadcast> for Client {
+impl Handler<Broadcast> for ChatClient {
     type Result = ();
 
     fn handle(&mut self, msg: Broadcast, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(msg.inner.as_ref().as_str())
+        // TODO: Use a binary protocol instead of JSON
+        ctx.text(msg.inner.as_ref())
     }
 }
